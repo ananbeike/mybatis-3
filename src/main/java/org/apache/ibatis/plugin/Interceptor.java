@@ -20,16 +20,40 @@ import java.util.Properties;
 /**
  * @author Clinton Begin
  */
-public interface Interceptor {
+public interface Interceptor{
 
-  Object intercept(Invocation invocation) throws Throwable;
+    /**
+     * 直接覆盖 所拦截对象原有的方法，插件的核心方法
+     *
+     * 内部要通过invocation.proceed()显式地推进责任链前进，也就是调用下一个拦截器拦截目标方法。
+     *
+     *
+     * @param invocation
+     *            通过此参数可以反射调度原来对象的方法
+     * @return
+     * @throws Throwable
+     */
+    Object intercept(Invocation invocation) throws Throwable;
 
-  default Object plugin(Object target) {
-    return Plugin.wrap(target, this);
-  }
+    /**
+     *
+     * 用当前这个拦截器生成对目标target的代理，实际是通过Plugin.wrap(target,this) 来完成的，把目标target和拦截器this传给了包装函数
+     *
+     * @param target
+     *            被代理的对象，
+     * @return
+     */
+    default Object plugin(Object target){
+        return Plugin.wrap(target, this);
+    }
 
-  default void setProperties(Properties properties) {
-    // NOP
-  }
+    /**
+     * 用于设置额外的参数，参数配置在拦截器的Properties节点里
+     *
+     * @param properties
+     */
+    default void setProperties(Properties properties){
+        // NOP
+    }
 
 }

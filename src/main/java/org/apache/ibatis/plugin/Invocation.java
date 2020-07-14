@@ -19,34 +19,47 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
+ * Invocation类保存了代理对象的目标类，执行的目标类方法以及传递给它的参数
+ * Invocation 类就是被代理对象的封装，也就是要拦截的真正对象
  * @author Clinton Begin
  */
-public class Invocation {
+public class Invocation{
 
-  private final Object target;
-  private final Method method;
-  private final Object[] args;
+    /**
+     * 目标类
+     */
+    private final Object target;
 
-  public Invocation(Object target, Method method, Object[] args) {
-    this.target = target;
-    this.method = method;
-    this.args = args;
-  }
+    /**
+     * 执行的目标类方法
+     */
+    private final Method method;
 
-  public Object getTarget() {
-    return target;
-  }
+    /**
+     * 传递给它的参数
+     */
+    private final Object[] args;
 
-  public Method getMethod() {
-    return method;
-  }
+    public Invocation(Object target, Method method, Object[] args){
+        this.target = target;
+        this.method = method;
+        this.args = args;
+    }
 
-  public Object[] getArgs() {
-    return args;
-  }
+    public Object getTarget(){
+        return target;
+    }
 
-  public Object proceed() throws InvocationTargetException, IllegalAccessException {
-    return method.invoke(target, args);
-  }
+    public Method getMethod(){
+        return method;
+    }
+
+    public Object[] getArgs(){
+        return args;
+    }
+
+    public Object proceed() throws InvocationTargetException,IllegalAccessException{
+        return method.invoke(target, args);
+    }
 
 }

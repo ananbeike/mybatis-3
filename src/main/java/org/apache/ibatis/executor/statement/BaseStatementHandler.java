@@ -36,110 +36,125 @@ import org.apache.ibatis.type.TypeHandlerRegistry;
 /**
  * @author Clinton Begin
  */
-public abstract class BaseStatementHandler implements StatementHandler {
+public abstract class BaseStatementHandler implements StatementHandler{
 
-  protected final Configuration configuration;
-  protected final ObjectFactory objectFactory;
-  protected final TypeHandlerRegistry typeHandlerRegistry;
-  protected final ResultSetHandler resultSetHandler;
-  protected final ParameterHandler parameterHandler;
+    protected final Configuration configuration;
 
-  protected final Executor executor;
-  protected final MappedStatement mappedStatement;
-  protected final RowBounds rowBounds;
+    protected final ObjectFactory objectFactory;
 
-  protected BoundSql boundSql;
+    protected final TypeHandlerRegistry typeHandlerRegistry;
 
-  protected BaseStatementHandler(Executor executor, MappedStatement mappedStatement, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql) {
-    this.configuration = mappedStatement.getConfiguration();
-    this.executor = executor;
-    this.mappedStatement = mappedStatement;
-    this.rowBounds = rowBounds;
+    protected final ResultSetHandler resultSetHandler;
 
-    this.typeHandlerRegistry = configuration.getTypeHandlerRegistry();
-    this.objectFactory = configuration.getObjectFactory();
+    protected final ParameterHandler parameterHandler;
 
-    if (boundSql == null) { // issue #435, get the key before calculating the statement
-      generateKeys(parameterObject);
-      boundSql = mappedStatement.getBoundSql(parameterObject);
+    protected final Executor executor;
+
+    protected final MappedStatement mappedStatement;
+
+    protected final RowBounds rowBounds;
+
+    protected BoundSql boundSql;
+
+    protected BaseStatementHandler(Executor executor, MappedStatement mappedStatement, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql){
+        this.configuration = mappedStatement.getConfiguration();
+        this.executor = executor;
+        this.mappedStatement = mappedStatement;
+        this.rowBounds = rowBounds;
+
+        this.typeHandlerRegistry = configuration.getTypeHandlerRegistry();
+        this.objectFactory = configuration.getObjectFactory();
+
+        if (boundSql == null){ // issue #435, get the key before calculating the statement
+            generateKeys(parameterObject);
+            boundSql = mappedStatement.getBoundSql(parameterObject);
+        }
+
+        this.boundSql = boundSql;
+
+        this.parameterHandler = configuration.newParameterHandler(mappedStatement, parameterObject, boundSql);
+        this.resultSetHandler = configuration.newResultSetHandler(executor, mappedStatement, rowBounds, parameterHandler, resultHandler, boundSql);
     }
 
-    this.boundSql = boundSql;
-
-    this.parameterHandler = configuration.newParameterHandler(mappedStatement, parameterObject, boundSql);
-    this.resultSetHandler = configuration.newResultSetHandler(executor, mappedStatement, rowBounds, parameterHandler, resultHandler, boundSql);
-  }
-
-  @Override
-  public BoundSql getBoundSql() {
-    return boundSql;
-  }
-
-  @Override
-  public ParameterHandler getParameterHandler() {
-    return parameterHandler;
-  }
-
-  @Override
-  public Statement prepare(Connection connection, Integer transactionTimeout) throws SQLException {
-    ErrorContext.instance().sql(boundSql.getSql());
-    Statement statement = null;
-    try {
-      statement = instantiateStatement(connection);
-      setStatementTimeout(statement, transactionTimeout);
-      setFetchSize(statement);
-      return statement;
-    } catch (SQLException e) {
-      closeStatement(statement);
-      throw e;
-    } catch (Exception e) {
-      closeStatement(statement);
-      throw new ExecutorException("Error preparing statement.  Cause: " + e, e);
+    @Override
+    public BoundSql getBoundSql(){
+        return boundSql;
     }
-  }
 
-  protected abstract Statement instantiateStatement(Connection connection) throws SQLException;
+    @Override
+    public ParameterHandler getParameterHandler(){
+        return parameterHandler;
+    }
 
-  protected void setStatementTimeout(Statement stmt, Integer transactionTimeout) throws SQLException {
-    Integer queryTimeout = null;
-    if (mappedStatement.getTimeout() != null) {
-      queryTimeout = mappedStatement.getTimeout();
-    } else if (configuration.getDefaultStatementTimeout() != null) {
-      queryTimeout = configuration.getDefaultStatementTimeout();
-    }
-    if (queryTimeout != null) {
-      stmt.setQueryTimeout(queryTimeout);
-    }
-    StatementUtil.applyTransactionTimeout(stmt, queryTimeout, transactionTimeout);
-  }
+    @Override
+    public Statement prepare(Connection connection,Integer transactionTimeout) throws SQLException{
+        //利用JDBC数据库连接Connection打开Statement对象，预编译SQL语句
+        ErrorContext.instance().sql(boundSql.getSql());
+        Statement statement = null;
+        try{
+            statement = instantiateStatement(connection);
 
-  protected void setFetchSize(Statement stmt) throws SQLException {
-    Integer fetchSize = mappedStatement.getFetchSize();
-    if (fetchSize != null) {
-      stmt.setFetchSize(fetchSize);
-      return;
+            setStatementTimeout(statement, transactionTimeout);
+            setFetchSize(statement);
+            return statement;
+        }catch (SQLException e){
+            closeStatement(statement);
+            throw e;
+        }catch (Exception e){
+            closeStatement(statement);
+            throw new ExecutorException("Error preparing statement.  Cause: " + e, e);
+        }
     }
-    Integer defaultFetchSize = configuration.getDefaultFetchSize();
-    if (defaultFetchSize != null) {
-      stmt.setFetchSize(defaultFetchSize);
-    }
-  }
 
-  protected void closeStatement(Statement statement) {
-    try {
-      if (statement != null) {
-        statement.close();
-      }
-    } catch (SQLException e) {
-      //ignore
-    }
-  }
+    /**
+     * 实例化 Statement
+     *
+     * @param connection
+     * @return
+     * @throws SQLException
+     */
+    protected abstract Statement instantiateStatement(Connection connection) throws SQLException;
 
-  protected void generateKeys(Object parameter) {
-    KeyGenerator keyGenerator = mappedStatement.getKeyGenerator();
-    ErrorContext.instance().store();
-    keyGenerator.processBefore(executor, mappedStatement, null, parameter);
-    ErrorContext.instance().recall();
-  }
+    protected void setStatementTimeout(Statement stmt,Integer transactionTimeout) throws SQLException{
+        Integer queryTimeout = null;
+        if (mappedStatement.getTimeout() != null){
+            queryTimeout = mappedStatement.getTimeout();
+        }else if (configuration.getDefaultStatementTimeout() != null){
+            queryTimeout = configuration.getDefaultStatementTimeout();
+        }
+        if (queryTimeout != null){
+            stmt.setQueryTimeout(queryTimeout);
+        }
+        StatementUtil.applyTransactionTimeout(stmt, queryTimeout, transactionTimeout);
+    }
+
+    protected void setFetchSize(Statement stmt) throws SQLException{
+        Integer fetchSize = mappedStatement.getFetchSize();
+        if (fetchSize != null){
+            stmt.setFetchSize(fetchSize);
+            return;
+        }
+        Integer defaultFetchSize = configuration.getDefaultFetchSize();
+        if (defaultFetchSize != null){
+            stmt.setFetchSize(defaultFetchSize);
+        }
+    }
+
+    protected void closeStatement(Statement statement){
+        try{
+            if (statement != null){
+                statement.close();
+            }
+        }catch (SQLException e){
+            //ignore
+        }
+    }
+
+    protected void generateKeys(Object parameter){
+        KeyGenerator keyGenerator = mappedStatement.getKeyGenerator();
+        ErrorContext.instance().store();
+        keyGenerator.processBefore(executor, mappedStatement, null, parameter);
+        ErrorContext.instance().recall();
+    }
 
 }
